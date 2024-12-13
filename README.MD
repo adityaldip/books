@@ -22,8 +22,8 @@ Books API adalah aplikasi backend sederhana untuk mengelola data buku menggunaka
 ## Instalasi
 1. Clone repository ini:
    ```bash
-   git clone <repository-url>
-   cd <nama-folder-proyek>
+   git clone https://github.com/adityaldip/books.git
+   cd books
    ```
 
 2. Instal dependensi:
