@@ -113,26 +113,48 @@ const deleteBook = async (req, res) => {
 
 const fetchExternalBooks = async (req, res) => {
   try {
+    // Fetch the list of new books
     const { data } = await axios.get('https://api.itbook.store/1.0/new');
     const books = data.books || [];
 
+    // Process each book
     const promises = books.map(async (b) => {
-      const exists = await Book.findOne({ where: { isbn: b.isbn13 } });
-      if (!exists) {
-        await Book.create({
-          title: b.title,
-          author: b.subtitle || 'Unknown',
-          published_date: new Date(),
-          isbn: b.isbn13,
-          pages: b.pages || null,
-        });
+      try {
+        // Fetch detailed book data using isbn13
+        const { data: bookDetails } = await axios.get(`https://api.itbook.store/1.0/books/${b.isbn13}`);
+        
+        // Check if the book exists in the database
+        const existingBook = await Book.findOne({ where: { isbn: b.isbn13 } });
+
+        if (existingBook) {
+          // Update the existing book
+          await existingBook.update({
+            title: bookDetails.title,
+            author: bookDetails.authors || 'Unknown',
+            published_date: bookDetails.year ? new Date(`${bookDetails.year}-01-01`) : new Date(),
+            pages: bookDetails.pages || null,
+          });
+        } else {
+          // Create a new book entry
+          await Book.create({
+            title: bookDetails.title,
+            author: bookDetails.authors || 'Unknown',
+            published_date: bookDetails.year ? new Date(`${bookDetails.year}-01-01`) : new Date(),
+            isbn: bookDetails.isbn13,
+            pages: bookDetails.pages || null,
+          });
+        }
+      } catch (detailError) {
+        console.error(`Failed to process book with ISBN: ${b.isbn13}`, detailError.message);
       }
     });
 
     await Promise.all(promises);
-    res.status(201).json({ message: 'Books fetched and stored successfully.' });
+
+    res.status(201).json({ message: 'Books fetched, updated, and stored successfully.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching books:', error.message);
+    res.status(500).json({ error: 'An error occurred while fetching books. Please try again later.' });
   }
 };
 
