@@ -54,27 +54,60 @@ const createBook = async (req, res) => {
   };
   
 
-const updateBook = async (req, res) => {
-  try {
-    const book = await Book.findByPk(req.params.id);
-    if (!book) return res.status(404).json({ error: 'Book not found' });
-
-    const updatedBook = await book.update(req.body);
-    res.json(updatedBook);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
+  const updateBook = async (req, res) => {
+    try {
+      const { title, author, published_date, isbn, pages } = req.body;
+  
+      // Find the book by ID
+      const book = await Book.findByPk(req.params.id);
+      if (!book) {
+        return res.status(404).json({ error: "Book not found. Please provide a valid ID." });
+      }
+  
+      // Input validation
+      if (title !== undefined && (typeof title !== "string" || !title.trim())) {
+        return res.status(400).json({ error: "Title must be a non-empty string if provided." });
+      }
+      if (author !== undefined && (typeof author !== "string" || !author.trim())) {
+        return res.status(400).json({ error: "Author must be a non-empty string if provided." });
+      }
+      if (published_date !== undefined && isNaN(Date.parse(published_date))) {
+        return res.status(400).json({ error: "Published date must be a valid date if provided." });
+      }
+      if (isbn !== undefined && typeof isbn !== "string") {
+        return res.status(400).json({ error: "ISBN must be a string if provided." });
+      }
+      if (pages !== undefined && (typeof pages !== "number" || pages < 0)) {
+        return res.status(400).json({ error: "Pages must be a non-negative number if provided." });
+      }
+  
+      // Update the book
+      const updatedBook = await book.update(req.body);
+      res.json(updatedBook);
+    } catch (error) {
+      if (error.name === "SequelizeUniqueConstraintError") {
+        return res.status(400).json({ error: "ISBN must be unique. Another book with this ISBN already exists." });
+      }
+      console.error("Error updating book:", error);
+      res.status(500).json({ error: "An internal server error occurred. Please try again later." });
+    }
+  };
+  
 
 const deleteBook = async (req, res) => {
   try {
+    // Find the book by ID
     const book = await Book.findByPk(req.params.id);
-    if (!book) return res.status(404).json({ error: 'Book not found' });
+    if (!book) {
+      return res.status(404).json({ error: "Book not found. Please provide a valid ID." });
+    }
 
+    // Delete the book
     await book.destroy();
-    res.status(204).send();
+    res.status(200).json({ message: "Book successfully deleted." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error deleting book:", error);
+    res.status(500).json({ error: "An internal server error occurred. Please try again later." });
   }
 };
 
